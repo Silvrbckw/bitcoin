@@ -40,13 +40,13 @@ class msg_unrecognized:
     msgtype = b'badmsg\x01'
 
     def __init__(self, *, str_data):
-        self.str_data = str_data.encode() if not isinstance(str_data, bytes) else str_data
+        self.str_data = str_data if isinstance(str_data, bytes) else str_data.encode()
 
     def serialize(self):
         return ser_string(self.str_data)
 
     def __repr__(self):
-        return "{}(data={})".format(self.msgtype, self.str_data)
+        return f"{self.msgtype}(data={self.str_data})"
 
 
 class SenderOfAddrV2(P2PInterface):
@@ -165,7 +165,7 @@ class InvalidMessagesTest(BitcoinTestFramework):
         # will produce unexpected results.
         conn.wait_for_sendaddrv2()
 
-        self.log.info('Test addrv2: ' + label)
+        self.log.info(f'Test addrv2: {label}')
 
         msg = msg_unrecognized(str_data=b'')
         msg.msgtype = b'addrv2'
@@ -236,8 +236,10 @@ class InvalidMessagesTest(BitcoinTestFramework):
 
     def test_oversized_msg(self, msg, size):
         msg_type = msg.msgtype.decode('ascii')
-        self.log.info("Test {} message of size {} is logged as misbehaving".format(msg_type, size))
-        with self.nodes[0].assert_debug_log(['Misbehaving', '{} message size = {}'.format(msg_type, size)]):
+        self.log.info(
+            f"Test {msg_type} message of size {size} is logged as misbehaving"
+        )
+        with self.nodes[0].assert_debug_log(['Misbehaving', f'{msg_type} message size = {size}']):
             self.nodes[0].add_p2p_connection(P2PInterface()).send_and_ping(msg)
         self.nodes[0].disconnect_p2ps()
 

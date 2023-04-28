@@ -119,10 +119,9 @@ class CoinSelectionTracepointTest(BitcoinTestFramework):
                 assert_equal(event.wallet_name.decode(), self.default_wallet_name)
                 assert_equal(event.type, expected_types[i])
                 events.append(event)
-            else:
-                # If the loop exits successfully instead of throwing a KeyError, then we have had
-                # more events than expected. There should be no more than len(expected_types) events.
-                assert False
+            # If the loop exits successfully instead of throwing a KeyError, then we have had
+            # more events than expected. There should be no more than len(expected_types) events.
+            assert False
         except KeyError:
             assert_equal(len(events), len(expected_types))
             return events

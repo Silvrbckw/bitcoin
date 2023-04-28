@@ -66,6 +66,7 @@ class ValidationTracepointTest(BitcoinTestFramework):
         # blocks.
         # See https://github.com/bitcoin/bitcoin/blob/master/doc/tracing.md#tracepoint-validationblock_connected
 
+
         class Block(ctypes.Structure):
             _fields_ = [
                 ("hash", ctypes.c_ubyte * 32),
@@ -91,7 +92,7 @@ class ValidationTracepointTest(BitcoinTestFramework):
         # that the handle_* functions succeeded.
         BLOCKS_EXPECTED = 2
         blocks_checked = 0
-        expected_blocks = dict()
+        expected_blocks = {}
 
         self.log.info("hook into the validation:block_connected tracepoint")
         ctx = USDT(pid=self.nodes[0].process.pid)

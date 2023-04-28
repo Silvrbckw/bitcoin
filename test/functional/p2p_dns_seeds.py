@@ -112,13 +112,10 @@ class P2PDNSSeeds(BitcoinTestFramework):
             third_octet = i % 100
             a = f"{first_octet}.{second_octet}.{third_octet}.1"
             self.nodes[0].addpeeraddress(a, 8333)
-            if (i > 1000 and i % 100 == 0):
-                # The addrman size is non-deterministic because new addresses
-                # are sorted into buckets, potentially displacing existing
-                # addresses. Periodically check if we have met the desired
-                # threshold.
-                if len(self.nodes[0].getnodeaddresses(0)) > 1000:
-                    break
+            if (i > 1000 and i % 100 == 0) and len(
+                self.nodes[0].getnodeaddresses(0)
+            ) > 1000:
+                break
 
         # The delay should be 5 mins
         with self.nodes[0].assert_debug_log(expected_msgs=["Waiting 300 seconds before querying DNS seeds.\n"]):
