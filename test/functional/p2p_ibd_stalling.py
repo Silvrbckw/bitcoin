@@ -36,9 +36,10 @@ class P2PStaller(P2PDataStore):
     def on_getdata(self, message):
         for inv in message.inv:
             self.getdata_requests.append(inv.hash)
-            if (inv.type & MSG_TYPE_MASK) == MSG_BLOCK:
-                if (inv.hash != self.stall_block):
-                    self.send_message(msg_block(self.block_store[inv.hash]))
+            if (inv.type & MSG_TYPE_MASK) == MSG_BLOCK and (
+                inv.hash != self.stall_block
+            ):
+                self.send_message(msg_block(self.block_store[inv.hash]))
 
     def on_getheaders(self, message):
         pass
@@ -142,11 +143,11 @@ class P2PIBDStallingTest(BitcoinTestFramework):
         self.wait_until(lambda: node.getblockcount() == NUM_BLOCKS)
 
     def total_bytes_recv_for_blocks(self):
-        total = 0
-        for info in self.nodes[0].getpeerinfo():
-            if ("block" in info["bytesrecv_per_msg"].keys()):
-                total += info["bytesrecv_per_msg"]["block"]
-        return total
+        return sum(
+            info["bytesrecv_per_msg"]["block"]
+            for info in self.nodes[0].getpeerinfo()
+            if ("block" in info["bytesrecv_per_msg"].keys())
+        )
 
     def all_sync_send_with_ping(self, peers):
         for p in peers:
@@ -154,10 +155,7 @@ class P2PIBDStallingTest(BitcoinTestFramework):
                 p.sync_send_with_ping()
 
     def is_block_requested(self, peers, hash):
-        for p in peers:
-            if p.is_connected and (hash in p.getdata_requests):
-                return True
-        return False
+        return any(p.is_connected and (hash in p.getdata_requests) for p in peers)
 
 
 if __name__ == '__main__':

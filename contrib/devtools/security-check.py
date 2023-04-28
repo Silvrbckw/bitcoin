@@ -18,17 +18,10 @@ def check_ELF_RELRO(binary) -> bool:
     GNU_RELRO program header must exist
     Dynamic section must have BIND_NOW flag
     '''
-    have_gnu_relro = False
-    for segment in binary.segments:
-        # Note: not checking p_flags == PF_R: here as linkers set the permission differently
-        # This does not affect security: the permission flags of the GNU_RELRO program
-        # header are ignored, the PT_LOAD header determines the effective permissions.
-        # However, the dynamic linker need to write to this area so these are RW.
-        # Glibc itself takes care of mprotecting this area R after relocations are finished.
-        # See also https://marc.info/?l=binutils&m=1498883354122353
-        if segment.type == lief.ELF.SEGMENT_TYPES.GNU_RELRO:
-            have_gnu_relro = True
-
+    have_gnu_relro = any(
+        segment.type == lief.ELF.SEGMENT_TYPES.GNU_RELRO
+        for segment in binary.segments
+    )
     have_bindnow = False
     try:
         flags = binary.get(lief.ELF.DYNAMIC_TAGS.FLAGS)
@@ -98,13 +91,11 @@ def check_ELF_separate_code(binary):
         if segment.type ==  lief.ELF.SEGMENT_TYPES.LOAD:
             for section in segment.sections:
                 flags_per_section[section.name] = segment.flags
-    # Spot-check ELF LOAD program header flags per section
-    # If these sections exist, check them against the expected R/W/E flags
-    for (section, flags) in flags_per_section.items():
-        if section in EXPECTED_FLAGS:
-            if int(EXPECTED_FLAGS[section]) != int(flags):
-                return False
-    return True
+    return not any(
+        section in EXPECTED_FLAGS
+        and int(EXPECTED_FLAGS[section]) != int(flags)
+        for section, flags in flags_per_section.items()
+    )
 
 def check_ELF_control_flow(binary) -> bool:
     '''
@@ -113,9 +104,7 @@ def check_ELF_control_flow(binary) -> bool:
     main = binary.get_function_address('main')
     content = binary.get_content_from_virtual_address(main, 4, lief.Binary.VA_TYPES.AUTO)
 
-    if content == [243, 15, 30, 250]: # endbr64
-        return True
-    return False
+    return content == [243, 15, 30, 250]
 
 def check_PE_DYNAMIC_BASE(binary) -> bool:
     '''PIE: DllCharacteristics bit 0x40 signifies dynamicbase (ASLR)'''
@@ -142,9 +131,7 @@ def check_PE_control_flow(binary) -> bool:
 
     content = binary.get_content_from_virtual_address(virtual_address, 4, lief.Binary.VA_TYPES.VA)
 
-    if content == [243, 15, 30, 250]: # endbr64
-        return True
-    return False
+    return content == [243, 15, 30, 250]
 
 def check_PE_Canary(binary) -> bool:
     '''
@@ -190,9 +177,7 @@ def check_MACHO_control_flow(binary) -> bool:
     '''
     content = binary.get_content_from_virtual_address(binary.entrypoint, 4, lief.Binary.VA_TYPES.AUTO)
 
-    if content == [243, 15, 30, 250]: # endbr64
-        return True
-    return False
+    return content == [243, 15, 30, 250]
 
 BASE_ELF = [
     ('PIE', check_PIE),
@@ -256,11 +241,9 @@ if __name__ == '__main__':
                 retval = 1
                 continue
 
-            failed: List[str] = []
-            for (name, func) in CHECKS[etype][arch]:
-                if not func(binary):
-                    failed.append(name)
-            if failed:
+            if failed := [
+                name for name, func in CHECKS[etype][arch] if not func(binary)
+            ]:
                 print(f'{filename}: failed {" ".join(failed)}')
                 retval = 1
         except IOError:
